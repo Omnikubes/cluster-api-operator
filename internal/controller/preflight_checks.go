@@ -155,15 +155,6 @@ func preflightChecks(ctx context.Context, c client.Client, provider genericprovi
 			"",
 		)
 
-		// CoreProvider is a singleton resource, more than one instances should not exist
-		if util.IsCoreProvider(p) {
-			log.Info(moreThanOneCoreProviderInstanceExistsMessage)
-			preflightFalseCondition.Message = moreThanOneCoreProviderInstanceExistsMessage
-			conditions.Set(provider, preflightFalseCondition)
-
-			return ctrl.Result{}, fmt.Errorf("only one instance of CoreProvider is allowed")
-		}
-
 		// For any other provider we should check that instances with similar name exist in any namespace
 		if p.GetObjectKind().GroupVersionKind().Kind != coreProvider && p.GetName() == provider.GetName() {
 			preflightFalseCondition.Message = fmt.Sprintf(moreThanOneProviderInstanceExistsMessage, p.GetName(), p.GetNamespace())

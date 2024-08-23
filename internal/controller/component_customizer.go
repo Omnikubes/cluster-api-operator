@@ -22,8 +22,10 @@ import (
 	"strings"
 	"time"
 
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -34,10 +36,13 @@ import (
 )
 
 const (
-	deploymentKind       = "Deployment"
-	namespaceKind        = "Namespace"
-	managerContainerName = "manager"
-	defaultVerbosity     = 1
+	deploymentKind         = "Deployment"
+	clusterRoleBindingKind = "ClusterRoleBinding"
+	mutatingWebhookKind    = "MutatingWebhookConfiguration"
+	validatingWebhookKind  = "ValidatingWebhookConfiguration"
+	namespaceKind          = "Namespace"
+	managerContainerName   = "manager"
+	defaultVerbosity       = 1
 )
 
 var bool2Str = map[bool]string{true: "true", false: "false"}
@@ -112,6 +117,51 @@ func customizeObjectsFn(provider operatorv1.GenericProvider) func(objs []unstruc
 				}
 
 				if err := scheme.Scheme.Convert(d, &o, nil); err != nil {
+					return nil, err
+				}
+			}
+
+			//nolint:nestif
+			if o.GetKind() == clusterRoleBindingKind {
+				r := &rbac.ClusterRoleBinding{}
+				if err := scheme.Scheme.Convert(&o, r, nil); err != nil {
+					return nil, err
+				}
+
+				// Set the name of the ClusterRoleBinding to include the provider name and namespace.
+				r.Name = provider.GetName() + "-" + provider.GetNamespace()
+
+				if err := scheme.Scheme.Convert(r, &o, nil); err != nil {
+					return nil, err
+				}
+			}
+
+			//nolint:nestif
+			if o.GetKind() == mutatingWebhookKind {
+				mwh := &admissionregistrationv1.MutatingWebhookConfiguration{}
+				if err := scheme.Scheme.Convert(&o, mwh, nil); err != nil {
+					return nil, err
+				}
+
+				// Set the name of the MutatingWebhookConfiguration to include the provider name and namespace.
+				mwh.Name = provider.GetName() + "-" + provider.GetNamespace()
+
+				if err := scheme.Scheme.Convert(mwh, &o, nil); err != nil {
+					return nil, err
+				}
+			}
+
+			//nolint:nestif
+			if o.GetKind() == validatingWebhookKind {
+				vwh := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+				if err := scheme.Scheme.Convert(&o, vwh, nil); err != nil {
+					return nil, err
+				}
+
+				// Set the name of the ValidatingWebhookConfiguration to include the provider name and namespace.
+				vwh.Name = provider.GetName() + "-" + provider.GetNamespace()
+
+				if err := scheme.Scheme.Convert(vwh, &o, nil); err != nil {
 					return nil, err
 				}
 			}
